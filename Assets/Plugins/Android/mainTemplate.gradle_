@@ -34,9 +34,9 @@ android {
 	defaultConfig {
 		targetSdkVersion 24
 		applicationId 'com.makoto.WebRtcDll'
-		jackOptions {
-      		enabled true
-    	}
+		//jackOptions {
+      	//	enabled true
+    	//}
 	}
 
 	lintOptions {

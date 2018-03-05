@@ -2,6 +2,10 @@
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
+// native impl: 
+// https://chromium.googlesource.com/external/webrtc/+/51e2046dbcbbb0375c383594aa4f77aa8ed67b06/examples/unityplugin/simple_peer_connection.cc
+// https://chromium.googlesource.com/external/webrtc/+/51e2046dbcbbb0375c383594aa4f77aa8ed67b06/examples/unityplugin/unity_plugin_apis.cc
+
 namespace SimplePeerConnectionM
 {
     // A class for ice candidate.
@@ -37,50 +41,70 @@ namespace SimplePeerConnectionM
     {
         //private const string dllPath = "webrtc_unity_plugin";
         private const string dllPath = "libjingle_peerconnection_so";
+
+        //[DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+        //private static extern int InitializePeerConnection(string[] turnUrls, int noOfUrls, string username, string credential, bool isReceiver);
+
         //create a peerconnection with turn servers
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         private static extern int CreatePeerConnection(string[] turnUrls, int noOfUrls,
             string username, string credential);
+
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         private static extern bool ClosePeerConnection(int peerConnectionId);
+
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         private static extern bool AddStream(int peerConnectionId, bool audioOnly);
+
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         private static extern bool AddDataChannel(int peerConnectionId);
+
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         private static extern bool CreateOffer(int peerConnectionId);
+
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         private static extern bool CreateAnswer(int peerConnectionId);
+
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         private static extern bool SendDataViaDataChannel(int peerConnectionId, string data);
+
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         private static extern bool SetAudioControl(int peerConnectionId, bool isMute, bool isRecord);
+
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate void LocalDataChannelReadyInternalDelegate();
         public delegate void LocalDataChannelReadyDelegate(int id);
+
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         private static extern bool RegisterOnLocalDataChannelReady(
             int peerConnectionId, LocalDataChannelReadyInternalDelegate callback);
+
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate void DataFromDataChannelReadyInternalDelegate(string s);
         public delegate void DataFromDataChannelReadyDelegate(int id, string s);
+
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         private static extern bool RegisterOnDataFromDataChannelReady(
             int peerConnectionId, DataFromDataChannelReadyInternalDelegate callback);
+
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate void FailureMessageInternalDelegate(string msg);
         public delegate void FailureMessageDelegate(int id, string msg);
+
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         private static extern bool RegisterOnFailure(int peerConnectionId,
             FailureMessageInternalDelegate callback);
+
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate void AudioBusReadyInternalDelegate(IntPtr data, int bitsPerSample,
             int sampleRate, int numberOfChannels, int numberOfFrames);
         public delegate void AudioBusReadyDelegate(int id, IntPtr data, int bitsPerSample,
             int sampleRate, int numberOfChannels, int numberOfFrames);
+
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         private static extern bool RegisterOnAudioBusReady(int peerConnectionId,
             AudioBusReadyInternalDelegate callback);
+
         // Video callbacks.
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate void I420FrameReadyInternalDelegate(
@@ -91,28 +115,36 @@ namespace SimplePeerConnectionM
             IntPtr dataY, IntPtr dataU, IntPtr dataV,
             int strideY, int strideU, int strideV,
             uint width, uint height);
+
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         private static extern bool RegisterOnLocalI420FrameReady(int peerConnectionId,
             I420FrameReadyInternalDelegate callback);
+
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         private static extern bool RegisterOnRemoteI420FrameReady(int peerConnectionId,
             I420FrameReadyInternalDelegate callback);
+
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate void LocalSdpReadytoSendInternalDelegate(string type, string sdp);
         public delegate void LocalSdpReadytoSendDelegate(int id, string type, string sdp);
+
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         private static extern bool RegisterOnLocalSdpReadytoSend(int peerConnectionId,
             LocalSdpReadytoSendInternalDelegate callback);
+
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate void IceCandiateReadytoSendInternalDelegate(
             string candidate, int sdpMlineIndex, string sdpMid);
         public delegate void IceCandiateReadytoSendDelegate(
             int id, string candidate, int sdpMlineIndex, string sdpMid);
+
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         private static extern bool RegisterOnIceCandiateReadytoSend(
             int peerConnectionId, IceCandiateReadytoSendInternalDelegate callback);
+
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         private static extern bool SetRemoteDescription(int peerConnectionId, string type, string sdp);
+
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
         private static extern bool AddIceCandidate(int peerConnectionId, string sdp,
           int sdpMlineindex, string sdpMid);
