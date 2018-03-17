@@ -1,0 +1,16 @@
+{
+  "name": "webrtc-simple-signaling-server",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "SEE LICENSE IN README",
+  "dependencies": {
+    "express": "^4.16.3",
+    "ngrok": "~2.2",
+    "socket.io": "~1"
+  }
+}

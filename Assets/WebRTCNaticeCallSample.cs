@@ -5,6 +5,147 @@ using SimplePeerConnectionM;
 using System;
 using System.Runtime.InteropServices;
 using System.Threading;
+using Quobject.SocketIoClientDotNet.Client;
+using Newtonsoft.Json;
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
+using Quobject.Collections.Immutable;
+//using socket.io;
+
+
+public class WebRtcMsg
+{
+    public int id;
+    public string msg;
+};
+
+public class WebRtcSocket
+{
+    int myUserId = 0;
+    Socket socket;
+
+    public int MyUserId
+    {
+        get { return myUserId; }
+    }
+
+    public WebRtcSocket()
+    {
+    }
+
+    public void Open(string url)
+    {
+        //System.Net.ServicePointManager.ServerCertificateValidationCallback = new RemoteCertificateValidationCallback(OnRemoteCertificateValidationCallback)
+        //System.Net.ServicePointManager.ServerCertificateValidationCallback = (p1, p2, p3, p4) => true;
+
+        //Socket socket = Socket.Connect(url);
+        Debug.Log("SocketIO: connecting to:" + url);
+        IO.Options opts = new IO.Options();
+        opts.Transports = ImmutableList<string>.Empty.Add("polling");
+        Socket socket = IO.Socket(url, opts);
+
+        //socket.On(SystemEvents.connect, () =>
+        socket.On(Socket.EVENT_CONNECT, () =>
+        {
+            Debug.Log("SocketIO: connected!");
+            this.socket = socket;
+            InitHandlers();
+            this.OnConnect();
+        });
+        /*
+        socket.On(SystemEvents.reconnect, () =>
+        {
+            Debug.Log("SocketIO: reconnected!");
+            //this.OnConnect();
+        });
+        */
+        //socket.On(SystemEvents.disconnect, () =>
+        socket.On(Socket.EVENT_DISCONNECT, () =>
+        {
+            Debug.Log("SocketIO: disconnected!");
+            this.OnDisconnect();
+            this.socket = null;
+        });
+        //socket.Connect();
+    }
+
+    void InitHandlers()
+    {
+        socket.On("welcome", (data) =>
+        {
+            Debug.Log("SocketIO: welcome");
+            WebRtcMsg msg = ConvertDataToWebRtcMsg(data);
+            myUserId = msg.id;
+            this.OnWelcome(msg);
+        });
+        socket.On("webrtc-offer", (data) =>
+        {
+            WebRtcMsg msg = ConvertDataToWebRtcMsg(data);
+            if (msg.id == myUserId) return;
+            Debug.Log("SocketIO: webrtc-offer");
+            this.OnOffer(msg);
+        });
+        socket.On("webrtc-answer", (data) =>
+        {
+            WebRtcMsg msg = ConvertDataToWebRtcMsg(data);
+            if (msg.id == myUserId) return;
+            Debug.Log("SocketIO: webrtc-answer");
+            this.OnAnswer(msg);
+        });
+        socket.On("join", (data) =>
+        {
+            WebRtcMsg msg = ConvertDataToWebRtcMsg(data);
+            if (msg.id == myUserId) return;
+            Debug.Log("SocketIO: join");
+            this.OnJoin(msg);
+        });
+        socket.On("exit", (data) =>
+        {
+            WebRtcMsg msg = ConvertDataToWebRtcMsg(data);
+            if (msg.id == myUserId) return;
+            Debug.Log("SocketIO: exit");
+            this.OnExit(msg);
+        });
+    }
+
+    public void Emit(string msgType, string body)
+    {
+        //WebRtcMsg msg = new WebRtcMsg();
+        //msg.id = myUserId;
+        //msg.body = body;
+        Debug.Log("SocketIO: Emit msgType:"+ msgType+" {id:" + myUserId+", msg:"+body+"}");
+        //string payload = JsonConvert.SerializeObject(msg);
+        this.socket.Emit(msgType, body);
+    }
+
+    WebRtcMsg ConvertDataToWebRtcMsg(object data)
+    {
+        string str = data.ToString();
+        WebRtcMsg msg = JsonConvert.DeserializeObject<WebRtcMsg>(str);
+        //string strChatLog = "user#" + msg.id + ": " + msg.body;
+        return msg;
+    }
+
+    public delegate void MessageListener(WebRtcMsg msg);
+    public delegate void ConnectionListener();
+
+    public event MessageListener OnOffer;
+    public event MessageListener OnAnswer;
+    public event MessageListener OnJoin;
+    public event MessageListener OnExit;
+    public event MessageListener OnWelcome;
+    public event ConnectionListener OnConnect;
+    public event ConnectionListener OnDisconnect;
+
+    private bool OnRemoteCertificateValidationCallback(
+  object sender,
+  X509Certificate certificate,
+  X509Chain chain,
+  SslPolicyErrors sslPolicyErrors)
+    {
+        return true;  // 「SSL証明書の使用は問題なし」と示す
+    }
+}
 
 public class WebRTCNaticeCallSample : MonoBehaviour {
 
@@ -17,21 +158,11 @@ public class WebRTCNaticeCallSample : MonoBehaviour {
     public FrameQueue frameQueueRemote = new FrameQueue(5);
     public WebRTCVideoPlayer localPlayer;
     public WebRTCVideoPlayer remotePlayer;
-    /*
-    List<byte[]> bufferYUVLocal = new List<byte[]> {
-        new byte[1920 * 1080],
-        new byte[1920 * 1080],
-        new byte[1920 * 1080]
-    };
-    List<byte[]> bufferYUVRemote = new List<byte[]> {
-        new byte[1920 * 1080],
-        new byte[1920 * 1080],
-        new byte[1920 * 1080]
-    };
-    byte[] bufferLocal = new byte[1920*1080];
-    byte[] bufferRemote = new byte[1920*1080];
-    */
-    System.Random random = new System.Random();
+
+    PeerConnectionM peer;
+    string offerSdp;
+    string answerSdp;
+    List<string> iceCandidates;
 
 
     // Use this for initialization
@@ -47,7 +178,8 @@ public class WebRTCNaticeCallSample : MonoBehaviour {
         }
     }
 
-    void InitWebRTC() {
+    public void InitWebRTC() {
+        iceCandidates = new List<string>();
 
 #if UNITY_ANDROID
         AndroidJavaClass systemClass = new AndroidJavaClass("java.lang.System");
@@ -79,7 +211,10 @@ public class WebRTCNaticeCallSample : MonoBehaviour {
         }
 
 #endif
-        PeerConnectionM peer = new PeerConnectionM(new List<string>(), "user", "cred");
+        List<string> servers = new List<string>();
+        servers.Add("stun: stun.skyway.io:3478");
+        servers.Add("stun: stun.l.google.com:19302");
+        peer = new PeerConnectionM(servers, "", "");
         int id = peer.GetUniqueId();
         Debug.Log("PeerConnectionM.GetUniqueId() : " + id);
 
@@ -97,52 +232,141 @@ public class WebRTCNaticeCallSample : MonoBehaviour {
 
     }
 
+    WebRtcSocket socket;
+    public string serverURL = "https://e9f5618d.ngrok.io";
+
+    public void InitSocketIo()
+    {
+        //if (socket == null)
+        {
+            socket = new WebRtcSocket();
+            socket.OnOffer += (WebRtcMsg msg) =>
+            {
+                Debug.Log("SetRemoteDescription(offer) sdp:" + msg.msg);
+                peer.SetRemoteDescription("offer", msg.msg);
+                peer.CreateAnswer();
+                //socket.Emit("webrtc-answer", sdp);
+            };
+            socket.OnAnswer += (WebRtcMsg msg) =>
+            {
+                //socket.Emit("webrtc-offer", sdp);
+                Debug.Log("SetRemoteDescription(answer) sdp:"+ msg.msg);
+                peer.SetRemoteDescription("answer", msg.msg);
+                foreach(string candidate in iceCandidates)
+                {
+                    socket.Emit("webrtc-icecandidate", candidate);
+                }
+                iceCandidates.Clear();
+            };
+            socket.OnJoin += (WebRtcMsg msg) =>
+            {
+            };
+            socket.OnWelcome += (WebRtcMsg msg) =>
+            {
+                if (this.offerSdp != null)
+                {
+                    socket.Emit("webrtc-offer", offerSdp);
+                }
+            };
+            socket.OnExit += (WebRtcMsg msg) =>
+            {
+                //socket.Emit("webrtc-answer", sdp);
+            };
+            socket.OnConnect += () =>
+            {
+
+            };
+            socket.OnDisconnect += () =>
+            {
+            };
+            socket.Open(serverURL);
+        }
+    }
+
     // Update is called once per frame
     void Update() {
 		if (first)
         {
             first = false;
-            InitWebRTC();
+            //InitWebRTC();
         }
     }
     public void OnLocalSdpReadytoSend(int id, string type, string sdp) {
         Debug.Log("OnLocalSdpReadytoSend called. id="+id+" | type="+type+" | sdp="+sdp);
+        // send offer
+
+        if (type == "offer")
+        {
+            if (socket != null)
+            {
+                socket.Emit("webrtc-offer", sdp);
+            } else
+            {
+                this.offerSdp = sdp;
+            }
+        }
+        else if (type == "answer")
+        {
+            if (socket != null)
+            {
+                socket.Emit("webrtc-answer", sdp);
+            } else
+            {
+                this.answerSdp = sdp;
+            }
+        }
+        else
+        {
+            Debug.Log("Unknown type : " + type);
+        }
     }
 
     public void OnIceCandiateReadytoSend(int id, string candidate, int sdpMlineIndex, string sdpMid) {
         Debug.Log("OnIceCandiateReadytoSend called. id="+id+" candidate="+candidate+" sdpMid="+sdpMid);
+        if (socket != null)
+        {
+            socket.Emit("webrtc-icecandidate", candidate);
+        } else
+        {
+            iceCandidates.Add(candidate);
+        }
     }
 
     public void OnI420LocalFrameReady(int id,
-            IntPtr dataY, IntPtr dataU, IntPtr dataV,
-            int strideY, int strideU, int strideV,
+            IntPtr dataY, IntPtr dataU, IntPtr dataV, IntPtr dataA,
+            int strideY, int strideU, int strideV, int strideA,
             uint width, uint height)
     {
         
-        Debug.Log("OnI420LocalFrameReady called! w=" + width + " h=" + height+" thread:"+ Thread.CurrentThread.ManagedThreadId + ":" + Thread.CurrentThread.Name);
-        // added some wait...
-        double x = 1.0;
-        for (int i = 0; i < 4000000; i++)
-        {
-            x += random.NextDouble();
-        }
-
+        //Debug.Log("OnI420LocalFrameReady called! w=" + width + " h=" + height+" thread:"+ Thread.CurrentThread.ManagedThreadId + ":" + Thread.CurrentThread.Name);
         FramePacket packet = frameQueueLocal.GetDataBufferWithoutContents((int) (width * height * 4));
-        Debug.Log("CopyYuvToBuffer start.");
+        if (packet == null)
+        {
+            //Debug.LogError("OnI420LocalFrameReady: FramePacket is null!");
+            return;
+        }
         CopyYuvToBuffer(dataY, dataU, dataV, strideY, strideU, strideV, width, height, packet.Buffer);
-        //Debug.Log("CopyYuvToBuffer end.");
-        packet.width = (int)width;// + (int)Math.Floor(x * 0.00000001);
+        packet.width = (int)width;
         packet.height = (int)height;
         frameQueueLocal.Push(packet);
-        //Debug.Log("framePacket Pushed.");
     }
 
     public void OnI420RemoteFrameReady(int id,
-        IntPtr dataY, IntPtr dataU, IntPtr dataV,
-        int strideY, int strideU, int strideV,
+        IntPtr dataY, IntPtr dataU, IntPtr dataV, IntPtr dataA,
+        int strideY, int strideU, int strideV, int strideA,
         uint width, uint height)
     {
         Debug.Log("OnI420RemoteFrameReady called! w=" + width + " h=" + height + " thread:" + Thread.CurrentThread.ManagedThreadId);
+        FramePacket packet = frameQueueRemote.GetDataBufferWithoutContents((int)(width * height * 4));
+        if (packet == null)
+        {
+            Debug.LogError("OnI420RemoteFrameReady: FramePacket is null!");
+            return;
+        }
+        CopyYuvToBuffer(dataY, dataU, dataV, strideY, strideU, strideV, width, height, packet.Buffer);
+        packet.width = (int)width;
+        packet.height = (int)height;
+        frameQueueRemote.Push(packet);
     }
 
     void CopyYuvToBuffer(IntPtr dataY, IntPtr dataU, IntPtr dataV,
@@ -166,13 +390,13 @@ public class WebRTCNaticeCallSample : MonoBehaviour {
             int srcOffsetU = 0;
             int srcOffsetV = 0;
             int destOffset = 0;
-            for (int i = 0; i < height / 2 ; i++)
+            for (int i = 0; i < height ; i++)
             {
                 srcOffsetY = i * strideY;
                 srcOffsetU = (i/2) * strideU;
                 srcOffsetV = (i/2) * strideV;
                 destOffset = i * (int)width * 4;
-                for (int j = 0; j < width / 2 ; j+=2)
+                for (int j = 0; j < width ; j+=2)
                 {
                     {
                         byte y = ptrY[srcOffsetY];
@@ -203,15 +427,12 @@ public class WebRTCNaticeCallSample : MonoBehaviour {
                 }
             }
         }
-
     }
 
     public void OnFailureMessage(int id, string msg)
     {
         Debug.Log("OnFailureMessage called! id=" + id + " msg=" + msg);
     }
-
-
 }
 
 public class FramePacket
@@ -407,7 +628,8 @@ public class FramePacketPool
                 FramePacket candidate = pool.RemoveFront();
                 if (candidate == null)
                 {
-                    Debug.LogError("candidate is null!");
+                    Debug.LogError("candidate is null! returns new buffer.");
+                    return GetNewBuffer(size);
                 } else
                 {
                     if (candidate.Buffer == null)

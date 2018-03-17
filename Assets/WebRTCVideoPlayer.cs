@@ -39,9 +39,11 @@ public class WebRTCVideoPlayer : MonoBehaviour {
             TryProcessFrame();
         }
 
-        _fpsLoad = frameQueue.Stats.fpsLoad();
-        _fpsShow = frameQueue.Stats.fpsShow();
-        _fpsSkip = frameQueue.Stats.fpsSkip();
+        if (frameQueue != null) {
+            _fpsLoad = frameQueue.Stats.fpsLoad();
+            _fpsShow = frameQueue.Stats.fpsShow();
+            _fpsSkip = frameQueue.Stats.fpsSkip();
+        }
     }
 
     private void TryProcessFrame()
@@ -49,7 +51,7 @@ public class WebRTCVideoPlayer : MonoBehaviour {
         if (frameQueue != null)
         {
             FramePacket packet = frameQueue.Pop();
-            Debug.Log((packet == null ? "no frame to consume." : "frame consumed.") + "framesCount : " + frameQueue.Count);
+            //Debug.Log((packet == null ? "no frame to consume." : "frame consumed.") + "framesCount : " + frameQueue.Count);
             if (packet != null)
             {
                 ProcessFrameBuffer(packet);
@@ -70,8 +72,8 @@ public class WebRTCVideoPlayer : MonoBehaviour {
             //tex = new RenderTexture(packet.width, packet.height, 0, RenderTextureFormat.BGRA32, RenderTextureReadWrite.Default);
             buffer = new byte[packet.width * packet.height * 4];
         }
-        Debug.Log("Received Packet. " + packet.ToString());
-        if (packet.Buffer.Length > 8)
+        //Debug.Log("Received Packet. " + packet.ToString());
+        /*if (packet.Buffer.Length > 8)
         {
             Debug.Log("buffer: " +
                 + packet.Buffer[0] + ","
@@ -83,21 +85,25 @@ public class WebRTCVideoPlayer : MonoBehaviour {
                 + packet.Buffer[6] + ","
                 + packet.Buffer[7]
                 );
-        }
+        }*/
         Array.Copy(packet.Buffer, 0, buffer, 0, buffer.Length);
-        Debug.Log("call LoadRawTextureData");
+        //Debug.Log("call LoadRawTextureData buffer length:" + buffer.Length 
+        //    + "tex width:"+tex.width+ "height:"+tex.height+" w * h * 4:" + tex.width * tex.height * 4);
         tex.LoadRawTextureData(buffer);
         //tex.LoadRawTextureData(packet.Buffer);
+        /*
         double x = 1.0;
         for(int i=0; i < 1000000; i++)
         {
             x += UnityEngine.Random.Range(0, 0.1f);
         }
         Debug.Log("call Apply "+Math.Floor(x * 0.00010));
+        */
+    
         tex.Apply();
-        Debug.Log("set Main Texture");
+        //Debug.Log("set Main Texture");
         GetComponent<Renderer>().material.mainTexture = tex;
-        Debug.Log("set Main Texture done.");
+        //Debug.Log("set Main Texture done.");
 
 
         //showUsedMemorySize();

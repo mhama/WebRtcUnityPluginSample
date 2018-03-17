@@ -1,0 +1,259 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Socket.IO chat</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font: 13px Helvetica, Arial; }
+      form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
+      form input { border: 0; padding: 10px; width: 90%; margin-right: .5%; }
+      form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
+      #messages { list-style-type: none; margin: 0; padding: 0; }
+      #messages li { padding: 5px 10px; }
+      #messages li:nth-child(odd) { background: #eee; }
+    </style>
+  </head>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+<script>
+
+  // simple and dirty WebRTC signaling (without sending each ice candidates)
+  // see: https://qiita.com/massie_g/items/f5baf316652bbc6fcef1
+
+  var userStream = null;
+  function prepareUserMedia() {
+    var options = {video: true, audio: false};
+    navigator.mediaDevices.getUserMedia(options)
+      .then(function(stream) {
+        console.log("GetUserMedia success!");
+        userStream = stream;
+        playVideoElement('video#local-video', stream);
+      })
+      .catch(function(err) {
+        AddMessage("GetUserMedia FAILED!", err);
+        AddMessage("Maybe you may need to permit camera on your browser.");
+      });
+  }
+
+  function playVideoElement(selector, stream) {
+    var video = document.querySelector(selector);
+    video.srcObject = stream;
+    video.onloadedmetadata = function(e) {
+      video.play();
+    };
+  }
+
+  function playRemoteStream(stream) {
+    playVideoElement('video#remote-video', stream);
+  }
+
+  function newRTCPeerConnection(config) {
+    if (typeof(RTCPeerConnection) != "undefined") {
+      return new RTCPeerConnection(config);
+    } else {
+      return new webkitRTCPeerConnection(config);
+    }
+  }
+
+  function addTrackOrStream(peer, stream) {
+    /*if ('addTrack' in peer) {
+      for (let track in stream.getTracks()) {
+        console.log("track:", track);
+        peer.addTrack(track);
+        peer.ad
+      }
+    } else */{
+      peer.addStream(stream);
+    }
+  }
+
+  function setOnTrackOrStreamHandler(peer, handler) {
+    if ('ontrack' in peer) {
+      peer.ontrack = function(event) {
+        var remoteStream = event.streams[0];
+        handler(remoteStream);
+      }
+    } else {
+      peer.onaddstream = function(event) {
+        var remoteStream = event.stream;
+        handler(remoteStream);
+      }
+    }
+  }
+
+  var peer = null;
+
+  function preparePeerConnection() {
+    var config = {"iceServers":[{"urls":"stun:stun.skyway.io:3478"}]};
+    var peer = newRTCPeerConnection(config);
+    addTrackOrStream(peer, userStream);
+    setOnTrackOrStreamHandler(peer, (remoteStream) => {
+      playRemoteStream(remoteStream);
+    });
+    if ('addTransceiver' in peer) {
+      peer.addTransceiver('video').setDirection('recvonly');
+    }
+    return peer;
+  }
+
+  function setOnIceFinishedHandler(peer, onIceFinished) {
+    peer.addEventListener('icecandidate', ev => {
+      if (ev.candidate) {
+        console.log("Found ICE candidate!", ev.candidate);
+      } else {
+        console.log("ICE candidate completed!");
+        onIceFinished();
+      }
+    });
+  }
+
+  function createOfferAndSetLocalDescription(peer, onIceFinished) {
+    setOnIceFinishedHandler(peer, onIceFinished);
+    peer.createOffer({ offerToReceiveVideo: true, offerToReceiveAudio: false })
+      .then(function(description) {
+        console.log("CreateOffer success!", description);
+        return peer.setLocalDescription(description); // then, icecandidate will come.
+      })
+      .then(function () {
+        // wait for ice to finish
+      })
+      .catch(function(err) {
+        console.log("CreateOffer FAILED!", err);
+      });
+  }
+
+  function createAnswerAndSetLocalDescription(peer, onIceFinished) {
+    setOnIceFinishedHandler(peer, onIceFinished);
+    var options = {};
+    peer.createAnswer(options)
+      .then(function(desc) {
+        //console.log("createAnswer success! desc:", desc);
+        addMessage("createAnswer success! desc:"+desc);
+        return peer.setLocalDescription(desc)
+      })
+      .then(function () {
+        // wait for ice to finish
+      })
+      .catch(function(err) {
+        console.log("createAnswer failed! err:", err);
+      });
+  }
+
+  function sendOffer(localDesc) {
+    console.log("send offer sdp:", localDesc.sdp);
+    socket.emit('webrtc-offer', localDesc.sdp);
+  }
+  function sendAnswer(localDesc) {
+    console.log("send answer sdp:", localDesc.sdp);
+    socket.emit('webrtc-answer', localDesc.sdp);
+  }
+
+  function addMessage(message) {
+    $('#messages').append($('<li>').text(message));
+  }
+  function showWebrtcMessage(type, data) {
+    addMessage("[" + type + "] user#" + data.id + ": " + data.msg);
+  }
+
+  var socket = null;
+  var myUserId = null;
+  var targetId = null;
+
+  $(function () {
+    socket = io();
+    $('form').submit(function(){
+      socket.emit('chat', $('#m').val());
+      $('#m').val('');
+      return false;
+    });
+    $('#start-camera').click(function() {
+      prepareUserMedia();
+    });
+    $('#start-peer').click(function() {
+      if (userStream == null) {
+        addMessage("Please Start Camera firstly.");
+        return;
+      }
+      peer = preparePeerConnection();
+      createOfferAndSetLocalDescription(peer, () => {
+        // on ice collection finished
+        sendOffer(peer.localDescription);
+      });
+    });
+    socket.on('welcome', function(data){
+      addMessage("My user# = " + data.id);
+    });
+    socket.on('chat', function(data){
+      addMessage("user#" + data.id + ": " + data.msg);
+    });
+    socket.on('welcome', function(data){
+      addMessage("You are user #" + data.id);
+      myUserId = data.id;
+    });
+    socket.on('join', function(data){
+      addMessage("user#" + data.id + ": joined.");
+      if (data.id != myUserId) {
+        if (targetId = null) {
+          targetId = data.id;
+        }
+      }
+    });
+    socket.on('exit', function(data){
+      addMessage("user#" + data.id + ": exited.");
+      if (targetId == data.id) {
+        targetId = null;
+      }
+    });
+
+    socket.on('webrtc-offer', function(data){
+      if (data.id == myUserId) return;
+      showWebrtcMessage("received offer", data);
+      if (userStream == null) {
+        addMessage("Please Start Camera firstly.");
+        return;
+      }
+      // create new peer connection.
+      peer = preparePeerConnection();
+      var desc = new RTCSessionDescription({type: 'offer', sdp: data.msg});
+      peer.setRemoteDescription(desc);
+      addMessage("creating answer");
+      createAnswerAndSetLocalDescription(peer, () => {
+        // on ice collection finished
+        addMessage("sending answer");
+        sendAnswer(peer.localDescription);
+      });
+    });
+    socket.on('webrtc-answer', (data) => {
+      if (data.id == myUserId) return;
+      showWebrtcMessage("received answer", data);
+      var desc = new RTCSessionDescription({type: 'answer',sdp: data.msg});
+      peer.setRemoteDescription(desc);
+    });
+    socket.on('webrtc-icecandidate', (data) => {
+      if (data.id == myUserId) return;
+      showWebrtcMessage("received ice candidate", data);
+      var desc = new RTCSessionDescription({type: 'answer',sdp: data.msg});
+      let candidate = new RTCIceCandidate({candidate:data.msg});
+
+      peer.addIceCandidate(candidate).then(_=>{
+        // Do stuff when the candidate is successfully passed to the ICE agent
+        console.log("success addIceCandidate()");
+      }).catch(e=>{
+        console.log("Error: Failure during addIceCandidate()");
+      });
+    });
+  });
+</script>
+
+  <body>
+    <button id="start-camera">Start Camera</button>
+    <button id="start-peer">Start Peer</button>
+    <video id="local-video" style='width:300px; height:200px;'></video>
+    <video id="remote-video" style='width:300px; height:200px;'></video>
+    <ul id="messages"></ul>
+    <form action="">
+      <input id="m" autocomplete="off" /><button>Send</button>
+    </form>
+  </body>
+</html>

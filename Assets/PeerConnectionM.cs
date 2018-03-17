@@ -108,12 +108,12 @@ namespace SimplePeerConnectionM
         // Video callbacks.
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate void I420FrameReadyInternalDelegate(
-            IntPtr dataY, IntPtr dataU, IntPtr dataV,
-            int strideY, int strideU, int strideV,
+            IntPtr dataY, IntPtr dataU, IntPtr dataV, IntPtr dataA,
+            int strideY, int strideU, int strideV, int strideA,
             uint width, uint height);
         public delegate void I420FrameReadyDelegate(int id,
-            IntPtr dataY, IntPtr dataU, IntPtr dataV,
-            int strideY, int strideU, int strideV,
+            IntPtr dataY, IntPtr dataU, IntPtr dataV, IntPtr dataA,
+            int strideY, int strideU, int strideV, int strideA,
             uint width, uint height);
 
         [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
@@ -246,21 +246,21 @@ namespace SimplePeerConnectionM
                     numberOfChannels, numberOfFrames);
         }
         private void RaiseLocalVideoFrameReady(
-            IntPtr dataY, IntPtr dataU, IntPtr dataV,
-            int strideY, int strideU, int strideV,
+            IntPtr dataY, IntPtr dataU, IntPtr dataV, IntPtr dataA,
+            int strideY, int strideU, int strideV, int strideA,
             uint width, uint height)
         {
             if (OnLocalVideoFrameReady != null)
-                OnLocalVideoFrameReady(mPeerConnectionId, dataY, dataU, dataV, strideY, strideU, strideV,
+                OnLocalVideoFrameReady(mPeerConnectionId, dataY, dataU, dataV, dataA, strideY, strideU, strideV, strideA,
                   width, height);
         }
         private void RaiseRemoteVideoFrameReady(
-           IntPtr dataY, IntPtr dataU, IntPtr dataV,
-           int strideY, int strideU, int strideV,
+           IntPtr dataY, IntPtr dataU, IntPtr dataV, IntPtr dataA,
+           int strideY, int strideU, int strideV, int strideA,
            uint width, uint height)
         {
             if (OnRemoteVideoFrameReady != null)
-                OnRemoteVideoFrameReady(mPeerConnectionId, dataY, dataU, dataV, strideY, strideU, strideV,
+                OnRemoteVideoFrameReady(mPeerConnectionId, dataY, dataU, dataV, dataA, strideY, strideU, strideV, strideA,
                   width, height);
         }
         private void RaiseLocalSdpReadytoSend(string type, string sdp)
