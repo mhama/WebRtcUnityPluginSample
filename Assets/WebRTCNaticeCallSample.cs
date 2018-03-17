@@ -224,11 +224,9 @@ public class WebRTCNaticeCallSample : MonoBehaviour {
         peer.OnRemoteVideoFrameReady += OnI420RemoteFrameReady;
         peer.OnFailureMessage += OnFailureMessage;
 
-        peer.AddStream(false);
-        peer.CreateOffer();
-
-        //peer.SetRemoteDescription()
-        Debug.Log("PeerConnectionM.CreateOffer() called.");
+        //peer.AddStream(false);
+        //peer.CreateOffer();
+        //Debug.Log("PeerConnectionM.CreateOffer() called.");
 
     }
 
@@ -280,6 +278,23 @@ public class WebRTCNaticeCallSample : MonoBehaviour {
             {
             };
             socket.Open(serverURL);
+        }
+    }
+
+    public void OfferWithCamera()
+    {
+        if (peer != null)
+        {
+            peer.AddStream(false);
+            peer.CreateOffer();
+        }
+    }
+
+    public void OfferWithoutCamera()
+    {
+        if (peer != null)
+        {
+            peer.CreateOffer();
         }
     }
 
@@ -356,7 +371,7 @@ public class WebRTCNaticeCallSample : MonoBehaviour {
         int strideY, int strideU, int strideV, int strideA,
         uint width, uint height)
     {
-        Debug.Log("OnI420RemoteFrameReady called! w=" + width + " h=" + height + " thread:" + Thread.CurrentThread.ManagedThreadId);
+        //Debug.Log("OnI420RemoteFrameReady called! w=" + width + " h=" + height + " thread:" + Thread.CurrentThread.ManagedThreadId);
         FramePacket packet = frameQueueRemote.GetDataBufferWithoutContents((int)(width * height * 4));
         if (packet == null)
         {
