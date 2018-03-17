@@ -233,7 +233,7 @@ public class WebRTCNaticeCallSample : MonoBehaviour {
     WebRtcSocket socket;
     public string serverURL = "https://e9f5618d.ngrok.io";
 
-    public void InitSocketIo()
+    public void ConnectToServer()
     {
         //if (socket == null)
         {
