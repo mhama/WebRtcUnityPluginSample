@@ -6,7 +6,7 @@ using UnityEngine.UI;
 public class ConnectButton : MonoBehaviour {
 
     public InputField urlInput;
-    public WebRTCNaticeCallSample webrtc;
+    public WebRtcNativeCallSample webrtc;
 
 	// Use this for initialization
 	void Start () {

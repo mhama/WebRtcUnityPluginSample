@@ -3,10 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class WebRTCVideoPlayer : MonoBehaviour {
+public class WebRtcVideoPlayer : MonoBehaviour {
 
     private Texture2D tex;
-    public FrameQueue frameQueue; // WebRTCNativeCallSampleがセットする。
+    public FrameQueue frameQueue; // WebRtcNativeCallSampleがセットする。
     float lastUpdateTime;
     byte[] buffer = null;
 
@@ -86,19 +86,14 @@ public class WebRTCVideoPlayer : MonoBehaviour {
                 + packet.Buffer[7]
                 );
         }*/
-        Array.Copy(packet.Buffer, 0, buffer, 0, buffer.Length);
         //Debug.Log("call LoadRawTextureData buffer length:" + buffer.Length 
         //    + "tex width:"+tex.width+ "height:"+tex.height+" w * h * 4:" + tex.width * tex.height * 4);
-        tex.LoadRawTextureData(buffer);
-        //tex.LoadRawTextureData(packet.Buffer);
-        /*
-        double x = 1.0;
-        for(int i=0; i < 1000000; i++)
-        {
-            x += UnityEngine.Random.Range(0, 0.1f);
-        }
-        Debug.Log("call Apply "+Math.Floor(x * 0.00010));
-        */
+
+
+        // bufferにコピーする場合（不要？）
+        //Array.Copy(packet.Buffer, 0, buffer, 0, buffer.Length);
+        //tex.LoadRawTextureData(buffer);
+        tex.LoadRawTextureData(packet.Buffer);
     
         tex.Apply();
         //Debug.Log("set Main Texture");
