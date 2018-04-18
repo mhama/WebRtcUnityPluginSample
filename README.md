@@ -54,22 +54,21 @@ ngrok server: https://440ab904.ngrok.io
 
 ## Start WebRTC on unity app
 
-* set the above `ngrok server` URL to app's server URL field.
-* push `Connect Server` button
-* push `Start WebRTC` button
-* push `Start Camera` button
+* set the above `ngrok server` URL to app's server URL field. (but use http:// rather than https://)
+* push `Connect` button
+* push `Offer with Camera` button
 
 ## Start the other side of WebRTC
 
-* set the above `ngrok server` URL to web browser. (need to support WebRTC).
+* browse the above `ngrok server` URL with web browser. (the web browser needs to support WebRTC).
 * push `Start Camera` button
 * push `Start Peer` button
 
 # Signaling
 
-Using signaling with http long polling of Socket.IO.
-Very dirty implementation that doesnot handle bad states.
+This sample use signaling with http long polling of Socket.IO.
+Very dirty implementation that doesnot handle bad states or errors.
 
 # Caution
 
-Beware that WebRTC use very much bandwidth!
+Beware that WebRTC may use very much bandwidth! Beware especially if you are not using fixed price connection.
