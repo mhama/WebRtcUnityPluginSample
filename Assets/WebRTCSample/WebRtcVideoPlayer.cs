@@ -8,7 +8,6 @@ public class WebRtcVideoPlayer : MonoBehaviour {
     private Texture2D tex;
     public FrameQueue frameQueue; // WebRtcNativeCallSampleがセットする。
     float lastUpdateTime;
-    byte[] buffer = null;
 
     [SerializeField]
     private bool _playing;
@@ -69,38 +68,11 @@ public class WebRtcVideoPlayer : MonoBehaviour {
         if (tex == null || (tex.width != packet.width || tex.height != packet.height)) {
             Debug.Log("Create Texture. width:"+packet.width+" height:"+packet.height);
             tex = new Texture2D(packet.width, packet.height, TextureFormat.RGBA32, false);
-            //tex = new RenderTexture(packet.width, packet.height, 0, RenderTextureFormat.BGRA32, RenderTextureReadWrite.Default);
-            buffer = new byte[packet.width * packet.height * 4];
         }
         //Debug.Log("Received Packet. " + packet.ToString());
-        /*if (packet.Buffer.Length > 8)
-        {
-            Debug.Log("buffer: " +
-                + packet.Buffer[0] + ","
-                + packet.Buffer[1] + ","
-                + packet.Buffer[2] + ","
-                + packet.Buffer[3] + ","
-                + packet.Buffer[4] + ","
-                + packet.Buffer[5] + ","
-                + packet.Buffer[6] + ","
-                + packet.Buffer[7]
-                );
-        }*/
-        //Debug.Log("call LoadRawTextureData buffer length:" + buffer.Length 
-        //    + "tex width:"+tex.width+ "height:"+tex.height+" w * h * 4:" + tex.width * tex.height * 4);
-
-
-        // bufferにコピーする場合（不要？）
-        //Array.Copy(packet.Buffer, 0, buffer, 0, buffer.Length);
-        //tex.LoadRawTextureData(buffer);
         tex.LoadRawTextureData(packet.Buffer);
     
         tex.Apply();
-        //Debug.Log("set Main Texture");
         GetComponent<Renderer>().material.mainTexture = tex;
-        //Debug.Log("set Main Texture done.");
-
-
-        //showUsedMemorySize();
     }
 }
