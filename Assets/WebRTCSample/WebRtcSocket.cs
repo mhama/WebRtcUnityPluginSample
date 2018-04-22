@@ -29,10 +29,6 @@ public class WebRtcSocket
 
     public void Open(string url)
     {
-        //System.Net.ServicePointManager.ServerCertificateValidationCallback = new RemoteCertificateValidationCallback(OnRemoteCertificateValidationCallback)
-        //System.Net.ServicePointManager.ServerCertificateValidationCallback = (p1, p2, p3, p4) => true;
-
-        //Socket socket = Socket.Connect(url);
         Debug.Log("SocketIO: connecting to:" + url);
         IO.Options opts = new IO.Options();
         opts.Transports = ImmutableList<string>.Empty.Add("polling");
@@ -123,13 +119,4 @@ public class WebRtcSocket
     public event ConnectionListener OnConnect;
     public event ErrorListener OnConnectError;
     public event ConnectionListener OnDisconnect;
-
-    private bool OnRemoteCertificateValidationCallback(
-  object sender,
-  X509Certificate certificate,
-  X509Chain chain,
-  SslPolicyErrors sslPolicyErrors)
-    {
-        return true;  // 「SSL証明書の使用は問題なし」と示す
-    }
 }

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 
-// byte[] のキュー。
+// FramePacket のキュー。
 // 指定サイズ以上Pushすると、指定サイズ以下になるよう末尾のデータから削除される。
 // スレッドセーフ。
 public class FrameQueue
