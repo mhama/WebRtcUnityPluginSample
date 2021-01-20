@@ -11,6 +11,6 @@
   "dependencies": {
     "express": "^4.16.3",
     "ngrok": "~2.2",
-    "socket.io": "~1"
+    "socket.io": "~2"
   }
 }
