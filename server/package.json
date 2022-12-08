@@ -9,7 +9,7 @@
   "author": "",
   "license": "SEE LICENSE IN README",
   "dependencies": {
-    "express": "^4.16.3",
+    "express": "^4.17.3",
     "ngrok": "~2.2",
     "socket.io": "~1"
   }
